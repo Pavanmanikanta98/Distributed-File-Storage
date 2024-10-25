@@ -1,15 +1,18 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 )
 
 // TCPPeer represents the remote node over  a TCP established connection
 type TCPPeer struct {
-	//conn is the underlying TCP connection of the peer
-	conn net.Conn
+	//The underlying  connection of the peer . which is this case
+	// is a TCP connection.
+	net.Conn
 
 	//if we dial and  retrive a conn  => outbound == true
 	//if we accept and  retrive a conn  => outbound == false
@@ -19,15 +22,22 @@ type TCPPeer struct {
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 
 	return &TCPPeer{
-		conn:     conn,
+		Conn:     conn,
 		outbound: outbound,
 	}
 
 }
 
-// close implements the peer interface
-func (p *TCPPeer) Close() error {
-	return p.conn.Close()
+func (p *TCPPeer) Send(b []byte) error {
+
+	_, err := p.Conn.Write(b)
+
+	// if err != nil {
+	// 	return err
+	// }
+	// return nil
+
+	return err
 }
 
 type TCPTransportopts struct {
@@ -61,6 +71,24 @@ func (t *TCPTransport) Consume() <-chan RPC {
 	return t.rpcch
 }
 
+// Close implements the Transport interface, which will close the   underlying TCP transport connection and disconnect from the server
+func (t *TCPTransport) Close() error {
+	return t.listener.Close()
+}
+
+// Dial implements the Transport interface,
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+	go t.handleConnection(conn, true)
+
+	return nil
+
+}
+
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
 	t.listener, err = net.Listen("tcp", t.ListenAddr)
@@ -70,6 +98,7 @@ func (t *TCPTransport) ListenAndAccept() error {
 
 	// t.listener = ln
 	go t.startAcceptLoop()
+	log.Printf("TCP transport listening on %s\t", t.ListenAddr)
 	return nil
 
 }
@@ -77,15 +106,21 @@ func (t *TCPTransport) ListenAndAccept() error {
 func (t *TCPTransport) startAcceptLoop() {
 
 	for {
+
 		conn, err := t.listener.Accept()
+
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
+
 		if err != nil {
-			fmt.Println("Error accepting connection:", err.Error())
+			fmt.Println(" TCP accept error :", err.Error())
 			continue
 		}
 
-		fmt.Printf("New Incoming connection %+v\n", conn)
+		// fmt.Printf("New Incoming connection %+v\n", conn)
 
-		go t.handleConnection(conn)
+		go t.handleConnection(conn, false)
 
 	}
 
@@ -93,7 +128,7 @@ func (t *TCPTransport) startAcceptLoop() {
 
 type Temp struct{}
 
-func (t *TCPTransport) handleConnection(conn net.Conn) {
+func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 
 	var err error
 
