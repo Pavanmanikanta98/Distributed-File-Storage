@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -51,7 +50,6 @@ func (p PathKey) FirstPathname() string {
 }
 
 func (p PathKey) FullPath() string {
-
 	return fmt.Sprintf("%s/%s", p.Pathname, p.Filename)
 }
 
@@ -59,6 +57,9 @@ type StoreOpts struct {
 	//Root is the folder name of the root directory, containing the folders/files of the system.
 	Root              string
 	PathTransformFunc PathTransformFunc
+	//ID of the owner of the storage, which will be used to store all files at that locations
+	//so we can sync all the files if needed.
+	ID string
 }
 
 var DefaultPathTransformFunc = func(key string) PathKey {
@@ -82,6 +83,9 @@ func NewStore(opts StoreOpts) *store {
 	if len(opts.Root) == 0 {
 		opts.Root = defaultRootFoldername
 	}
+	if len(opts.ID) == 0 {
+		opts.ID = generateID()
+	}
 	return &store{
 		StoreOpts: opts,
 	}
@@ -91,7 +95,7 @@ func NewStore(opts StoreOpts) *store {
 func (s *store) Has(key string) bool {
 
 	pathKey := s.PathTransformFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, s.ID, pathKey.FullPath())
 	_, err := os.Stat(fullPathWithRoot)
 
 	return !errors.Is(err, os.ErrNotExist)
@@ -110,12 +114,12 @@ func (s *store) Delete(key string) error {
 		log.Printf("Deleting %s from disk", pathkey.Filename)
 	}()
 
-	firstPAthnameWithRoot := fmt.Sprintf("%s/%s", s.Root, pathkey.FirstPathname())
+	firstPAthnameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, s.ID, pathkey.FirstPathname())
 
 	return os.RemoveAll(firstPAthnameWithRoot)
 }
 
-func (s *store) Write(key string, data io.Reader) error {
+func (s *store) Write(key string, data io.Reader) (int64, error) {
 	// f, err := s.writeStream(key, data)
 
 	// if err!= nil {
@@ -130,58 +134,60 @@ func (s *store) Write(key string, data io.Reader) error {
 	return s.writeStream(key, data)
 }
 
-func (s *store) Read(key string) (io.Reader, error) {
+func (s *store) WriteDecrypt(enckey []byte, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(key)
 
-	f, er := s.readStream(key)
-
-	if er != nil {
-
-		return nil, er
-
+	if err != nil {
+		return 0, err
 	}
 
-	defer f.Close()
+	n, err := copyDecrypt(enckey, r, f)
 
-	buf := new(bytes.Buffer)
-
-	_, er = io.Copy(buf, f)
-
-	return buf, er
-}
-func (s *store) readStream(key string) (io.ReadCloser, error) {
-
-	pathKey := s.PathTransformFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
-
-	return os.Open(fullPathWithRoot)
-
+	return int64(n), err
 }
 
-func (s *store) writeStream(key string, r io.Reader) error {
-
+func (s *store) openFileForWriting(key string) (*os.File, error) {
 	pathkey := s.PathTransformFunc(key)
-	pathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathkey.Pathname)
+	pathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, s.ID, pathkey.Pathname)
 
 	if err := os.MkdirAll(pathWithRoot, os.ModePerm); err != nil {
-		return err
+		return nil, err
 	}
-
 	// fullPath := pathkey.FullPath()
-	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathkey.FullPath())
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, s.ID, pathkey.FullPath())
+	return os.Create(fullPathWithRoot)
+}
+func (s *store) writeStream(key string, r io.Reader) (int64, error) {
 
-	f, err := os.Create(fullPathWithRoot)
+	f, err := s.openFileForWriting(key)
+	if err != nil {
+		return 0, err
+	}
+	return io.Copy(f, r)
+
+}
+
+// FIXME: Done
+func (s *store) Read(key string) (int64, io.Reader, error) {
+
+	return s.readStream(key)
+
+}
+func (s *store) readStream(key string) (int64, io.ReadCloser, error) {
+
+	pathKey := s.PathTransformFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, s.ID, pathKey.FullPath())
+
+	file, err := os.Open(fullPathWithRoot)
 
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 
-	n, err := io.Copy(f, r)
+	fi, err := file.Stat()
 
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
-	// log.Printf("working")
-	log.Printf("written %d bytes to disk: %s ", n, fullPathWithRoot)
-
-	return nil
+	return fi.Size(), file, nil
 }

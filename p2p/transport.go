@@ -9,6 +9,7 @@ import "net"
 type Peer interface {
 	net.Conn
 	Send([]byte) error
+	CloseStream()
 
 	// conn() net.Conn
 	// RemoteAddr() net.Addr
@@ -18,8 +19,10 @@ type Peer interface {
 // Transport is anything that handles communication btw the nodes in the network
 // This can be of the form  ( TCP, UDP, websocket, ...)
 type Transport interface {
+	Addr() string
 	Dial(string) error
 	ListenAndAccept() error
 	Consume() <-chan RPC
 	Close() error
+	// ListenAddr() string
 }

@@ -17,6 +17,8 @@ type TCPPeer struct {
 	//if we dial and  retrive a conn  => outbound == true
 	//if we accept and  retrive a conn  => outbound == false
 	outbound bool
+
+	wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
@@ -24,6 +26,7 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
+		wg:       &sync.WaitGroup{},
 	}
 
 }
@@ -38,6 +41,10 @@ func (p *TCPPeer) Send(b []byte) error {
 	// return nil
 
 	return err
+}
+
+func (p *TCPPeer) CloseStream() {
+	p.wg.Done()
 }
 
 type TCPTransportopts struct {
@@ -60,10 +67,21 @@ func NewTCPTransport(opts TCPTransportopts) *TCPTransport {
 
 	return &TCPTransport{
 		TCPTransportopts: opts,
-		rpcch:            make(chan RPC),
+		rpcch:            make(chan RPC, 1024),
 	}
 
 }
+
+// Addr implements the Transport interface retrun the address
+// the transport is accepting connections
+func (t *TCPTransport) Addr() string {
+	return t.ListenAddr
+}
+
+//TODO : LAter
+// func (t *TCPTransport) ListenAddr() string {
+// 	return t.ListenAddr
+// }
 
 // Consume implements the Transport interface, which wil return readOnly
 // channel for Reading the incoming messages received from Another peer in the network .
@@ -155,35 +173,28 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 
 	}
 
-	// lenDecodeError := 0
-	//Read loop
+	// Read loop
 
-	// for {
-	// 	if err := t.Decoder.Decode(conn, msg); err != nil {
-	// 		lenDecodeError++
-	// 		if lenDecodeError >= 1 {
-	// 			fmt.Printf("Too many decode errors, closing connection: %+v\n", peer)
-	// 			fmt.Printf("TCP error : %s\n", err)
-	// 			conn.Close()
-	// 			return
-	// 		}
-	// 		continue
-	// 	}
-	rpc := RPC{}
 	for {
+		rpc := RPC{}
 		if err = t.Decoder.Decode(conn, &rpc); err != nil {
 			fmt.Printf("TCP error : %s\n", err)
 			return
 
 		}
 
-		rpc.from = conn.RemoteAddr()
+		rpc.From = conn.RemoteAddr().String()
 
+		if rpc.Stream {
+			peer.wg.Add(1)
+			fmt.Printf("[%s] incoming  stream , waiting... \n", conn.RemoteAddr())
+			peer.wg.Wait()
+			fmt.Printf("[%s] stream closed, resuming read loop\n", conn.RemoteAddr())
+			continue
+
+		}
 		t.rpcch <- rpc
 
-		// fmt.Printf("message %+v from %+v\n", string(rpc.Payload), rpc.from.String())
 	}
-
-	// fmt.Printf("New Incoming connection %+v\n", peer)
 
 }

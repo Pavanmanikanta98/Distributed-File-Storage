@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"log"
+	"time"
 
 	"github.com/pavanmanikanta98/dfs-with-go/p2p"
 )
@@ -20,8 +23,16 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 		log.Fatal("Failed to initialize TCPTransport")
 	}
 
+	// go func() {
+	// 	for {
+	// 		msg := <-tcpTransport.Consume()
+	// 		log.Printf("Received %+v \n", msg.Payload)
+	// 	}
+	// }()
+
 	// Set up file server options
 	fileServerOpts := FileServerOpts{
+		EncKey:            newEncryptionkey(),
 		StorageRoot:       listenAddr + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
@@ -37,52 +48,49 @@ func main() {
 
 	s1 := makeServer(":4000", "")
 	s2 := makeServer(":3000", ":4000")
+	s3 := makeServer(":5000", ":4000", ":3000")
 
 	go func() {
 		log.Fatal(s1.Start())
 	}()
+	time.Sleep(500 * time.Millisecond)
 
-	s2.Start()
+	go func() {
+		log.Fatal(s2.Start())
 
-	data := bytes.NewReader([]byte("My big data file "))
+	}()
 
-	s2.StoreData("myprivatedata", data)
+	time.Sleep(1 * time.Second)
 
-	// tcptransportOpts := p2p.TCPTransportopts{
-	// 	ListenAddr:    ":5000",
-	// 	HandShakeFunc: p2p.NoPHandShakeFunc,
-	// 	Decoder:       p2p.DefaultDecoder{},
-	// 	// TODO : onPeer func
-	// }
+	go s3.Start()
+	time.Sleep(1 * time.Second)
 
-	// tcpTransport := p2p.NewTCPTransport(tcptransportOpts)
-	// if tcpTransport == nil {
-	// 	log.Fatal("Failed to initialize TCPTransport")
-	// }
+	for i := 0; i < 17; i++ {
 
-	// // Set up file server options
-	// fileServerOpts := FileServerOpts{
-	// 	StorageRoot:       "5000_network",
-	// 	PathTransformFunc: CASPathTransformFunc,
-	// 	Transport:         tcpTransport,
-	// 	BootstrapNodes:    []string{":4000"},
-	// }
+		// key := "golang.jpg"
+		key := fmt.Sprintf("picture_%d.png", i)
 
-	// Create the file server
-	// s := NewFileServer(fileServerOpts)
+		data := bytes.NewReader([]byte("My big data file... "))
 
-	// go func() {
-	// 	time.Sleep(time.Second * 3)
-	// 	s.Stop()
-	// }()
+		s3.Store(key, data)
 
-	// Start the file server
-	// if err := s.Start(); err != nil {
-	// 	log.Fatalf("Failed to start file server: %v", err)
-	// }
+		if err := s3.store.Delete(key); err != nil {
+			log.Fatal(err)
+		}
 
-	// Keep the main function running
-	// select {}
+		r, err := s3.GET(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, r); err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(buf.String())
+
+	}
 
 }
 

@@ -31,14 +31,14 @@ func TestStore(t *testing.T) {
 		key := fmt.Sprintf("goo%d", i)
 		data := []byte("Test with empty key")
 
-		if err := s.writeStream(key, bytes.NewBuffer(data)); err != nil {
+		if _, err := s.writeStream(key, bytes.NewBuffer(data)); err != nil {
 			t.Fatalf("Failed to write stream with empty key: %v", err)
 		}
 		if ok := s.Has(key); !ok {
 			t.Fatalf("Expected to have key %s", key)
 		}
 
-		r, er := s.Read(key)
+		_, r, er := s.Read(key)
 
 		if er != nil {
 			t.Error(er)
