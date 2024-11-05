@@ -50,8 +50,8 @@ Getting Started
     
 *   Clone this repository:
   ```
-git clone https://github.com/pavan/dfs-with-go.git
-cd dfs-with-go
+git clone https://github.com/Pavanmanikanta98/Distributed-File-Storage.git
+cd Distributed-File-Storage
 
 ```
     
