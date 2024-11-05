@@ -76,10 +76,14 @@ The file server listens on a specified port and connects with bootstrap nodes fo
 ### Example Commands
 
 * **Store Data**: store a file in DFS.
-  ``` s.Store("myfile.txt", reader) ```
+  ```
+  s.Store("myfile.txt", reader)
+  ```
     
 * **Retrieve Data**:Retrieve a file from DFS.
-  ``` r, err := s.GET("myfile.txt")```
+  ```
+  r, err := s.GET("myfile.txt")
+  ```
     
 
 ### Testing
