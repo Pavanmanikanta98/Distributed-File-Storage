@@ -48,35 +48,46 @@ Getting Started
 
 *   [Go](https://golang.org/doc/install)
     
-*   bashCopy codegit clone https://github.com/yourusername/dfs-with-go.gitcd dfs-with-go
+*   Clone this repository:
+  ```
+git clone https://github.com/pavan/dfs-with-go.git
+cd dfs-with-go
+
+```
     
 
 ### Installation
 
 Install necessary dependencies:
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   bashCopy codego mod tidy   `
+```
+go mod tidy
+```
 
 ### Usage
 
 To start a file server:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   bashCopy codemake run   `
+```
+make run
+```
 
 The file server listens on a specified port and connects with bootstrap nodes for peer discovery.
 
 ### Example Commands
 
-*   goCopy codes.Store("myfile.txt", reader)
+* **Store Data**: store a file in DFS.
+  ``` s.Store("myfile.txt", reader) ```
     
-*   goCopy coder, err := s.GET("myfile.txt")
+* **Retrieve Data**:Retrieve a file from DFS.
+  ``` r, err := s.GET("myfile.txt")```
     
 
 ### Testing
 
 Run tests with:
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   bashCopy codemake test   `
+```
+make test 
+```
 
 Contributing
 ------------
