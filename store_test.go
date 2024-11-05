@@ -10,6 +10,7 @@ import (
 
 func TestPathTransform(t *testing.T) {
 	key := "momsMagic"
+
 	pathkey := CASPathTransformFunc(key)
 	expectedPathName := "e859f/351e1/a12eb/03d6b/424d9/e93d1/2b099/d7d7d"
 	expextedFilename := "e859f351e1a12eb03d6b424d9e93d12b099d7d7d"
@@ -24,6 +25,7 @@ func TestPathTransform(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	s := newStore()
+	id := generateID()
 	defer tearDown(t, s)
 
 	for i := 0; i < 50; i++ {
@@ -31,14 +33,14 @@ func TestStore(t *testing.T) {
 		key := fmt.Sprintf("goo%d", i)
 		data := []byte("Test with empty key")
 
-		if _, err := s.writeStream(key, bytes.NewBuffer(data)); err != nil {
+		if _, err := s.writeStream(id, key, bytes.NewBuffer(data)); err != nil {
 			t.Fatalf("Failed to write stream with empty key: %v", err)
 		}
-		if ok := s.Has(key); !ok {
+		if ok := s.Has(id, key); !ok {
 			t.Fatalf("Expected to have key %s", key)
 		}
 
-		_, r, er := s.Read(key)
+		_, r, er := s.Read(id, key)
 
 		if er != nil {
 			t.Error(er)
@@ -52,11 +54,11 @@ func TestStore(t *testing.T) {
 			t.Errorf("want %s have %s ", data, b)
 		}
 
-		if err := s.Delete(key); err != nil {
+		if err := s.Delete(id, key); err != nil {
 			t.Error(err)
 		}
 
-		if ok := s.Has(key); ok {
+		if ok := s.Has(id, key); ok {
 			t.Fatalf("Expected to NOT have key %s", key)
 		}
 
